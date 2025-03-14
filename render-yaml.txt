@@ -1,0 +1,22 @@
+services:
+  # הגדרת שירות אינטרנט עבור תוסף התרגום לעברית
+  - type: web
+    name: stremio-hebrew-translation
+    env: node
+    region: frankfurt # בחר אזור קרוב לישראל לביצועים טובים יותר
+    plan: free # תוכל לשדרג מאוחר יותר לתוכנית בתשלום אם תרצה
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /health
+    # כיצד ליצור גרסאות חדשות של השירות
+    autoDeploy: true
+    # הגדרות סביבה
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000 # render.com ישתמש ב-PORT במקום בפורט הקשיח 7000
+      - key: GOOGLE_TRANSLATE_THROTTLE
+        value: "500" # מגביל את קצב הקריאות ל-Google Translate (במילישניות)
+      - key: MAX_CONCURRENT_TRANSLATIONS
+        value: "20" # מספר מקסימלי של תרגומים מקבילים
