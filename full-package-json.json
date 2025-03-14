@@ -1,0 +1,36 @@
+{
+  "name": "stremio-hebrew-translation-addon",
+  "version": "1.0.0",
+  "description": "תוסף תרגום לעברית עבור סטרמיו",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "stremio-addon-sdk": "^1.6.10",
+    "node-fetch": "^2.6.7",
+    "@vitalets/google-translate-api": "^9.0.0",
+    "express": "^4.18.2",
+    "subtitles-parser": "^0.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-username/stremio-hebrew-translation-addon.git"
+  },
+  "keywords": [
+    "stremio",
+    "addon",
+    "hebrew",
+    "translation",
+    "subtitles"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}
