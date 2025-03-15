@@ -1,4 +1,3 @@
-// server.js - קובץ שרת פשוט המשתמש ב-serveHTTP בלבד
 const { serveHTTP } = require('stremio-addon-sdk');
 const express = require('express');
 const fetch = require('node-fetch');
@@ -10,8 +9,11 @@ const PORT = parseInt(process.env.PORT || 7000, 10);
 const BASE_URL = 'https://stremio-hebrew-translation.onrender.com';
 process.env.BASE_URL = BASE_URL;
 
-// טעינת התוסף - השתמש בממשק שהוחזר מ-addon.js
+// טעינת התוסף (ונשתמש בserveHTTP)
 const addonInterface = require('./addon');
+
+// הפעלת שרת סטרמיו עם התוסף - זה מטפל בכל נתיבי ה-API (manifest, meta, catalog, stream)
+serveHTTP(addonInterface, { port: PORT });
 
 // יצירת שרת Express נפרד לתרגום כתוביות
 const app = express();
