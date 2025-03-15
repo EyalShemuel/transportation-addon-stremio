@@ -1,15 +1,12 @@
 // שירות תרגום כתוביות מאנגלית לעברית
-const express = require('express');
 const fetch = require('node-fetch');
 const srtParser = require('subtitles-parser');
 const translate = require('@vitalets/google-translate-api');
 
-// נתיב לתרגום כתוביות - מקבל אפליקציית Express
-function addSubtitleTranslationService(app) {
-    // וודא שהאפליקציה קיימת
+// הגדרת שירות תרגום הכתוביות
+function setupSubtitleTranslation(app) {
     if (!app) {
-        console.error('אפליקציית Express לא סופקה לשירות תרגום הכתוביות');
-        return;
+        throw new Error('אפליקציית Express חסרה בהגדרת שירות תרגום הכתוביות');
     }
 
     // נתיב לתרגום כתוביות
@@ -21,22 +18,25 @@ function addSubtitleTranslationService(app) {
                 return res.status(400).send('URL parameter is required');
             }
             
+            console.log(`מתרגם כתוביות מהכתובת: ${url}`);
+            
             // הורדת קובץ הכתוביות
             const subtitleResponse = await fetch(url);
             if (!subtitleResponse.ok) {
+                console.error(`שגיאה בהורדת הכתוביות: ${subtitleResponse.status}`);
                 return res.status(404).send('Could not fetch subtitle file');
             }
             
             const subtitleText = await subtitleResponse.text();
             
-            // הניחו שהפורמט הוא SRT או רק VTT (הכי נפוצים)
+            // ניסיון לפרסר את הכתוביות
             let parsedSubs;
             try {
                 // ניסיון לפרסר בפורמט SRT
                 parsedSubs = srtParser.fromSrt(subtitleText);
+                console.log(`נמצאו ${parsedSubs.length} שורות כתוביות לתרגום`);
             } catch (error) {
-                // אם זה לא SRT, ננסה לפרסר VTT בסיסי
-                // פרסור VTT מלא הוא יותר מורכב, זה רק בסיסי
+                console.error('שגיאה בפרסור הכתוביות:', error);
                 return res.status(400).send('Unsupported subtitle format. Only SRT is supported.');
             }
             
@@ -47,9 +47,11 @@ function addSubtitleTranslationService(app) {
             // תרגום כל שורת כתובית לעברית עם הגבלת קצב
             // נחלק את העבודה לקבוצות כדי לא לעבור את מגבלות ה-API
             const batchSize = Math.min(parsedSubs.length, maxConcurrent);
+            console.log(`מתרגם בקבוצות של ${batchSize} שורות, עם השהיה של ${throttleMs}ms בין קבוצות`);
             
             for (let i = 0; i < parsedSubs.length; i += batchSize) {
                 const batch = parsedSubs.slice(i, i + batchSize);
+                console.log(`מתרגם קבוצה ${Math.floor(i/batchSize) + 1}/${Math.ceil(parsedSubs.length/batchSize)}`);
                 
                 // תרגום הקבוצה הנוכחית במקביל
                 await Promise.all(
@@ -58,7 +60,7 @@ function addSubtitleTranslationService(app) {
                             const result = await translate(sub.text, { to: 'he' });
                             parsedSubs[i + idx].text = result.text;
                         } catch (error) {
-                            console.error(`Error translating subtitle at index ${i + idx}:`, error);
+                            console.error(`שגיאה בתרגום שורה ${i + idx}:`, error);
                             // אם התרגום נכשל, נשאיר את הטקסט המקורי
                         }
                     })
@@ -72,17 +74,20 @@ function addSubtitleTranslationService(app) {
             
             // המרה חזרה לפורמט SRT
             const translatedSrt = srtParser.toSrt(parsedSubs);
+            console.log('התרגום הושלם, שולח כתוביות מתורגמות');
             
             // שליחת הכתוביות המתורגמות
             res.set('Content-Type', 'text/plain');
+            res.set('Content-Disposition', 'attachment; filename="hebrew-subtitles.srt"');
             res.send(translatedSrt);
         } catch (error) {
-            console.error('Subtitle translation error:', error);
+            console.error('שגיאה כללית בתרגום כתוביות:', error);
             res.status(500).send('Error translating subtitles');
         }
     });
 
     console.log('שירות תרגום כתוביות הופעל');
+    return app;
 }
 
-module.exports = { addSubtitleTranslationService };
+module.exports = { setupSubtitleTranslation };
