@@ -1,4 +1,4 @@
-// server.js - גרסה מתוקנת לשימוש ב-serveHTTP
+// server.js - קובץ שרת פשוט המשתמש ב-serveHTTP בלבד
 const { serveHTTP } = require('stremio-addon-sdk');
 const express = require('express');
 const fetch = require('node-fetch');
@@ -10,24 +10,11 @@ const PORT = parseInt(process.env.PORT || 7000, 10);
 const BASE_URL = 'https://stremio-hebrew-translation.onrender.com';
 process.env.BASE_URL = BASE_URL;
 
-// טעינת התוסף (ונשתמש בserveHTTP)
+// טעינת התוסף - השתמש בממשק שהוחזר מ-addon.js
 const addonInterface = require('./addon');
-
-// הפעלת שרת סטרמיו עם התוסף - זה מטפל בכל נתיבי ה-API (manifest, meta, catalog, stream)
-serveHTTP(addonInterface, { port: PORT });
 
 // יצירת שרת Express נפרד לתרגום כתוביות
 const app = express();
-
-// נתיב health check
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString(),
-    baseUrl: BASE_URL
-  });
-});
 
 // נתיב לתרגום כתוביות
 app.get('/translate-subtitle', async (req, res) => {
@@ -94,9 +81,9 @@ app.get('/translate-subtitle', async (req, res) => {
     }
 });
 
-// נתיב שורש לבדיקת חיבור
+// דף בית פשוט
 app.get('/', (req, res) => {
-  res.send(`
+    res.send(`
     <html dir="rtl">
       <head>
         <title>תוסף תרגום לעברית עבור Stremio</title>
@@ -106,9 +93,6 @@ app.get('/', (req, res) => {
           h1 { color: #2c3e50; }
           a { display: inline-block; margin: 10px 0; padding: 10px 20px; background-color: #3498db; color: white; text-decoration: none; border-radius: 3px; }
           a:hover { background-color: #2980b9; }
-          .instructions { margin-top: 30px; padding: 15px; background-color: #f9f9f9; border-right: 3px solid #2c3e50; }
-          .instructions h2 { margin-top: 0; }
-          .instructions ol { padding-right: 20px; }
         </style>
       </head>
       <body>
@@ -116,29 +100,21 @@ app.get('/', (req, res) => {
           <h1>תוסף תרגום לעברית עבור Stremio</h1>
           <p>התוסף פועל! כדי להוסיף אותו ל-Stremio, השתמש בכתובת:</p>
           <a href="${BASE_URL}/manifest.json">${BASE_URL}/manifest.json</a>
-
-          <div class="instructions">
-            <h2>הוראות התקנה:</h2>
-            <ol>
-              <li>פתח את אפליקציית Stremio</li>
-              <li>לך להגדרות (Settings) > תוספים (Add-ons)</li>
-              <li>לחץ על "התקן תוסף" (Install Add-on)</li>
-              <li>הדבק את הכתובת: <code>${BASE_URL}/manifest.json</code></li>
-              <li>לחץ על "התקן" (Install)</li>
-            </ol>
-          </div>
         </div>
       </body>
     </html>
   `);
 });
 
-// הפעלת שרת Express על פורט אחר
+// הפעלת שרת Express לתרגום כתוביות
 const TRANSLATE_PORT = PORT + 1;
 app.listen(TRANSLATE_PORT, '0.0.0.0', () => {
-    console.log(`שרת התרגום פועל על פורט ${TRANSLATE_PORT}`);
-    console.log(`שירות תרגום כתוביות זמין בנתיב ${BASE_URL}/translate-subtitle`);
+    console.log(`שרת תרגום הכתוביות פועל על פורט ${TRANSLATE_PORT}`);
 });
 
-console.log(`התוסף פועל על פורט ${PORT}`);
+// הפעלת שרת התוסף עם serveHTTP
+serveHTTP(addonInterface, { port: PORT, bindAddr: '0.0.0.0' });
+
+console.log(`שרת התוסף פועל על פורט ${PORT}`);
 console.log(`כתובת המאניפסט: ${BASE_URL}/manifest.json`);
+console.log(`שירות תרגום כתוביות: ${BASE_URL}/translate-subtitle`);
