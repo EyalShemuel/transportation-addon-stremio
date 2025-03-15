@@ -1,5 +1,5 @@
-// server.js - גרסה מתוקנת לשימוש עם stremio-addon-sdk
-const { addonBuilder, serveHTTP } = require('stremio-addon-sdk');
+// server.js - גרסה מתוקנת לשימוש ב-stremio-addon-sdk
+const { addonBuilder } = require('stremio-addon-sdk');
 const express = require('express');
 const fetch = require('node-fetch');
 const srtParser = require('subtitles-parser');
@@ -14,10 +14,65 @@ process.env.BASE_URL = BASE_URL;
 // טעינת התוסף
 const addonInterface = require('./addon');
 
-// יצירת שרת Express
+// יצירת אפליקציית Express
 const app = express();
 
-// נתיב שורש - דף הבית
+// יצירת שרת HTTP ידני
+const server = http.createServer(app);
+
+// פונקציה לניתוב בקשות Stremio
+function handleStremioEndpoints(req, res, next) {
+    // בדיקה אם זו בקשה לנתיב Stremio
+    const stremioEndpoints = [
+        '/manifest.json',
+        '/meta/',
+        '/catalog/',
+        '/stream/'
+    ];
+
+    // בדיקה אם הבקשה היא לאחד מנתיבי ה-API של Stremio
+    const isStremioEndpoint = stremioEndpoints.some(endpoint => 
+        req.url.startsWith(endpoint)
+    );
+
+    if (isStremioEndpoint) {
+        // העברת הבקשה ל-addonInterface
+        console.log(`מעביר בקשת Stremio: ${req.url}`);
+        
+        // להעתיק את המאפיינים של הבקשה לאובייקט חדש שידמה בקשת Express
+        const addonReq = {
+            url: req.url,
+            method: req.method,
+            headers: req.headers,
+            on: req.on.bind(req),
+            addListener: req.addListener.bind(req)
+        };
+        
+        // הגדרת res.end המקורי
+        const originalEnd = res.end;
+        
+        // החלפת res.end כדי לרשום לוג
+        res.end = function(...args) {
+            console.log(`סיום בקשת Stremio: ${req.url}`);
+            return originalEnd.apply(this, args);
+        };
+        
+        // הפעלת הרוטר של ה-addon
+        addonInterface(addonReq, res, () => {
+            // אם ה-addon לא טיפל בבקשה, המשך לניתוב הבא
+            console.log(`הבקשה ${req.url} לא טופלה על ידי התוסף, ממשיך לניתוב הבא`);
+            next();
+        });
+    } else {
+        // אם זה לא נתיב Stremio, המשך לניתובים הבאים
+        next();
+    }
+}
+
+// הוספת מידלוור לטיפול בנתיבי Stremio
+app.use(handleStremioEndpoints);
+
+// נתיב שורש לתיעוד
 app.get('/', (req, res) => {
   res.send(`
     <html dir="rtl">
@@ -131,17 +186,9 @@ app.get('/translate-subtitle', async (req, res) => {
     }
 });
 
-// שרת Express - משמש לנתיב התרגום
-const expressServer = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`שרת Express פועל על פורט ${PORT}`);
-    console.log(`שירות תרגום כתוביות זמין בנתיב ${BASE_URL}/translate-subtitle`);
+// הפעלת השרת המאוחד
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`השרת המאוחד פועל על פורט ${PORT}`);
+    console.log(`כתובת המאניפסט: ${BASE_URL}/manifest.json`);
+    console.log(`שירות תרגום כתוביות: ${BASE_URL}/translate-subtitle`);
 });
-
-// הפעלת שרת Stremio - הפנה את תעבורת ה-Express ל-serveHTTP עבור נתיבי התוסף
-serveHTTP(addonInterface, {
-    port: PORT,  // משתמש באותו פורט
-    server: expressServer  // משתמש בשרת ה-Express הקיים
-});
-
-console.log(`התוסף פועל על פורט ${PORT}`);
-console.log(`כתובת המאניפסט: ${BASE_URL}/manifest.json`);
