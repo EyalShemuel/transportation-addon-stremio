@@ -1,6 +1,6 @@
-// server.js - פתרון מאוחד עם Express
+// server.js - גרסה מתוקנת לשימוש ב-serveHTTP
+const { serveHTTP } = require('stremio-addon-sdk');
 const express = require('express');
-const { addonBuilder } = require('stremio-addon-sdk');
 const fetch = require('node-fetch');
 const srtParser = require('subtitles-parser');
 const translate = require('@vitalets/google-translate-api');
@@ -10,71 +10,14 @@ const PORT = parseInt(process.env.PORT || 7000, 10);
 const BASE_URL = 'https://stremio-hebrew-translation.onrender.com';
 process.env.BASE_URL = BASE_URL;
 
-// יצירת אפליקציית Express אחת לכל הנתיבים
-const app = express();
-
-// טעינת התוסף (במקום להשתמש בserveHTTP, נשתמש בממשק ישירות)
+// טעינת התוסף (ונשתמש בserveHTTP)
 const addonInterface = require('./addon');
 
-// הוספת כותרות CORS לכל התגובות
-app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', '*');
-  next();
-});
+// הפעלת שרת סטרמיו עם התוסף - זה מטפל בכל נתיבי ה-API (manifest, meta, catalog, stream)
+serveHTTP(addonInterface, { port: PORT });
 
-// נתיב למאניפסט
-app.get('/manifest.json', (req, res) => {
-  console.log('מקבל בקשה למאניפסט');
-  res.setHeader('Content-Type', 'application/json');
-  res.send(JSON.stringify(addonInterface.manifest));
-});
-
-// נתיב למטא-נתונים
-app.get('/meta/:type/:id.json', async (req, res) => {
-  const { type, id } = req.params;
-  console.log(`מקבל בקשת מטא-נתונים: ${type} ${id}`);
-  
-  try {
-    const resp = await addonInterface.meta({ type, id });
-    res.setHeader('Content-Type', 'application/json');
-    res.send(resp);
-  } catch (err) {
-    console.error(`שגיאה בבקשת מטא-נתונים: ${err}`);
-    res.status(500).send({ err: 'שגיאה פנימית' });
-  }
-});
-
-// נתיב לקטלוג
-app.get('/catalog/:type/:id.json', async (req, res) => {
-  const { type, id } = req.params;
-  const extra = req.query;
-  console.log(`מקבל בקשת קטלוג: ${type} ${id}`, extra);
-  
-  try {
-    const resp = await addonInterface.catalog({ type, id, extra });
-    res.setHeader('Content-Type', 'application/json');
-    res.send(resp);
-  } catch (err) {
-    console.error(`שגיאה בבקשת קטלוג: ${err}`);
-    res.status(500).send({ err: 'שגיאה פנימית' });
-  }
-});
-
-// נתיב לזרמים (streams)
-app.get('/stream/:type/:id.json', async (req, res) => {
-  const { type, id } = req.params;
-  console.log(`מקבל בקשת זרם: ${type} ${id}`);
-  
-  try {
-    const resp = await addonInterface.stream({ type, id });
-    res.setHeader('Content-Type', 'application/json');
-    res.send(resp);
-  } catch (err) {
-    console.error(`שגיאה בבקשת זרם: ${err}`);
-    res.status(500).send({ err: 'שגיאה פנימית' });
-  }
-});
+// יצירת שרת Express נפרד לתרגום כתוביות
+const app = express();
 
 // נתיב health check
 app.get('/health', (req, res) => {
@@ -183,14 +126,6 @@ app.get('/', (req, res) => {
               <li>הדבק את הכתובת: <code>${BASE_URL}/manifest.json</code></li>
               <li>לחץ על "התקן" (Install)</li>
             </ol>
-            
-            <h2>איך לראות את התקצירים בעברית:</h2>
-            <ol>
-              <li>אחרי התקנת התוסף, בחר סרט או סדרה</li>
-              <li>לחץ על כפתור "..." או תפריט אפשרויות נוספות בפינה העליונה</li>
-              <li>בחר באפשרות "הצג מידע מ..." (View from...)</li>
-              <li>בחר ב"תרגום לעברית" מהרשימה</li>
-            </ol>
           </div>
         </div>
       </body>
@@ -198,9 +133,12 @@ app.get('/', (req, res) => {
   `);
 });
 
-// הפעלת השרת על פורט יחיד
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`השרת המאוחד פועל על פורט ${PORT}`);
-    console.log(`כתובת המאניפסט: ${BASE_URL}/manifest.json`);
-    console.log(`שירות תרגום כתוביות: ${BASE_URL}/translate-subtitle`);
+// הפעלת שרת Express על פורט אחר
+const TRANSLATE_PORT = PORT + 1;
+app.listen(TRANSLATE_PORT, '0.0.0.0', () => {
+    console.log(`שרת התרגום פועל על פורט ${TRANSLATE_PORT}`);
+    console.log(`שירות תרגום כתוביות זמין בנתיב ${BASE_URL}/translate-subtitle`);
 });
+
+console.log(`התוסף פועל על פורט ${PORT}`);
+console.log(`כתובת המאניפסט: ${BASE_URL}/manifest.json`);
