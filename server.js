@@ -1,9 +1,10 @@
-// server.js - גרסה מתוקנת
-const { serveHTTP, publishToCentral } = require('stremio-addon-sdk');
+// server.js - גרסה מתוקנת לשימוש עם stremio-addon-sdk
+const { addonBuilder, serveHTTP } = require('stremio-addon-sdk');
 const express = require('express');
 const fetch = require('node-fetch');
 const srtParser = require('subtitles-parser');
 const translate = require('@vitalets/google-translate-api');
+const http = require('http');
 
 // קביעת כתובת הבסיס
 const PORT = parseInt(process.env.PORT || 7000, 10);
@@ -13,11 +14,10 @@ process.env.BASE_URL = BASE_URL;
 // טעינת התוסף
 const addonInterface = require('./addon');
 
-// יצירת אפליקציית Express
+// יצירת שרת Express
 const app = express();
 
-// נתיב ה-manifest ושאר ה-endpoints של ה-addon
-// הגדר תיעוד נכון עבור ה-addon
+// נתיב שורש - דף הבית
 app.get('/', (req, res) => {
   res.send(`
     <html dir="rtl">
@@ -131,15 +131,17 @@ app.get('/translate-subtitle', async (req, res) => {
     }
 });
 
-// עבור כל הבקשות ל-addon API, השתמש ב-stremio-addon-sdk router
-app.use(addonInterface.getRouter());
-
-// הפעלת השרת
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`השרת המאוחד פועל על פורט ${PORT}`);
-    console.log(`כתובת המאניפסט: ${BASE_URL}/manifest.json`);
-    console.log(`שירות תרגום כתוביות: ${BASE_URL}/translate-subtitle`);
-    
-    // פרסום התוסף ל-Stremio central (אופציונלי)
-    // publishToCentral(`${BASE_URL}/manifest.json`);
+// שרת Express - משמש לנתיב התרגום
+const expressServer = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`שרת Express פועל על פורט ${PORT}`);
+    console.log(`שירות תרגום כתוביות זמין בנתיב ${BASE_URL}/translate-subtitle`);
 });
+
+// הפעלת שרת Stremio - הפנה את תעבורת ה-Express ל-serveHTTP עבור נתיבי התוסף
+serveHTTP(addonInterface, {
+    port: PORT,  // משתמש באותו פורט
+    server: expressServer  // משתמש בשרת ה-Express הקיים
+});
+
+console.log(`התוסף פועל על פורט ${PORT}`);
+console.log(`כתובת המאניפסט: ${BASE_URL}/manifest.json`);
