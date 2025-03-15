@@ -2,7 +2,7 @@
 const { addonBuilder } = require('stremio-addon-sdk');
 const fetch = require('node-fetch');
 const translate = require('@vitalets/google-translate-api');
-const BASE_URL = process.env.BASE_URL || 'https://tremio-hebrew-translation.onrender.com';
+const BASE_URL = process.env.BASE_URL || 'https://stremio-hebrew-translation.onrender.com';
 console.log(`addon.js: Using BASE_URL: ${BASE_URL}`);
 
 // יצירת תוסף חדש
