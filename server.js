@@ -92,4 +92,4 @@ app.listen(TRANSLATION_PORT, () => {
     console.log(`שירות תרגום כתוביות פועל על פורט ${TRANSLATION_PORT}`);
 });
 
-console.log(`התוסף לסטרמיו פועל על פורט ${PORT} - manifest בכתובת http://localhost:${PORT}/manifest.json`);
+console.log(`התוסף לסטרמיו פועל על פורט ${PORT} - manifest בכתובת http://tremio-hebrew-translation.onrender.com:${PORT}/manifest.json`);
