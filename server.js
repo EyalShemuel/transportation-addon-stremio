@@ -1,30 +1,55 @@
-// server.js - פתרון אחיד ופשוט
-const { serveHTTP } = require('stremio-addon-sdk');
+// server.js - פתרון מאוחד עם Express
 const express = require('express');
+const { addonBuilder } = require('stremio-addon-sdk');
 const fetch = require('node-fetch');
 const srtParser = require('subtitles-parser');
 const translate = require('@vitalets/google-translate-api');
 
-// קביעת כתובת הבסיס לפני טעינת addon.js
-// חשוב: זה חייב להיות לפני שטוענים את addon.js!
+// קביעת כתובת הבסיס
 const PORT = parseInt(process.env.PORT || 7000, 10);
-// קבע את הכתובת האמיתית של השרת
 const BASE_URL = 'https://stremio-hebrew-translation.onrender.com';
-// שמור אותה כמשתנה סביבה כדי שaddon.js יכול להשתמש בה
 process.env.BASE_URL = BASE_URL;
 
-// כעת טען את ה-addon שישתמש ב-BASE_URL הנכון
+// יצירת אפליקציית Express אחת לכל הנתיבים
+const app = express();
+
+// טעינת התוסף (במקום להשתמש בserveHTTP, נשתמש בממשק ישירות)
 const addonInterface = require('./addon');
 
-// הדפס לוגים לאימות
-console.log(`כתובת בסיס מוגדרת: ${BASE_URL}`);
+// נתיב למאניפסט
+app.get('/manifest.json', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Content-Type', 'application/json');
+  res.send(JSON.stringify(addonInterface.manifest));
+});
 
-// הפעל את שרת התוסף - שים לב להגדרת host: '0.0.0.0'
-serveHTTP(addonInterface, { port: PORT, host: '0.0.0.0' });
-console.log(`התוסף לסטרמיו פועל על פורט ${PORT}`);
+// נתיבים אחרים של התוסף
+app.get('/:resource/:type/:id/:extra?.json', (req, res) => {
+  const { resource, type, id } = req.params;
+  const extra = req.params.extra ? JSON.parse(decodeURIComponent(req.params.extra)) : {};
 
-// יצירת שרת Express נפרד לתרגום כתוביות
-const app = express();
+  console.log('קיבל בקשה:', resource, type, id, extra);
+
+  // פנייה לפונקציה המתאימה בממשק התוסף
+  const handler = addonInterface[resource];
+  
+  if (handler) {
+    handler({ type, id, extra })
+      .then(resp => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Headers', '*');
+        res.setHeader('Content-Type', 'application/json');
+        res.send(resp);
+      })
+      .catch(err => {
+        console.error('שגיאה בטיפול בבקשה:', err);
+        res.status(500).send({ err: 'שגיאה פנימית בשרת' });
+      });
+  } else {
+    res.status(404).send({ err: 'לא נמצא משאב' });
+  }
+});
 
 // נתיב health check
 app.get('/health', (req, res) => {
@@ -101,9 +126,23 @@ app.get('/translate-subtitle', async (req, res) => {
     }
 });
 
-// הפעלת שרת התרגום - השתמש ב-0.0.0.0 כדי לאפשר גישה חיצונית
-const TRANSLATION_PORT = PORT + 1001;
-app.listen(TRANSLATION_PORT, '0.0.0.0', () => {
-    console.log(`שירות תרגום כתוביות פועל על פורט ${TRANSLATION_PORT}`);
-    console.log(`שירות תרגום כתוביות זמין בנתיב ${BASE_URL}/translate-subtitle`);
+// נתיב שורש לבדיקת חיבור
+app.get('/', (req, res) => {
+  res.send(`
+    <html>
+      <head><title>תוסף תרגום לעברית עבור Stremio</title></head>
+      <body>
+        <h1>תוסף תרגום לעברית עבור Stremio</h1>
+        <p>התוסף פועל! כדי להוסיף אותו ל-Stremio, השתמש בכתובת:</p>
+        <a href="${BASE_URL}/manifest.json">${BASE_URL}/manifest.json</a>
+      </body>
+    </html>
+  `);
+});
+
+// הפעלת השרת על פורט יחיד
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`השרת המאוחד פועל על פורט ${PORT}`);
+    console.log(`כתובת המאניפסט: ${BASE_URL}/manifest.json`);
+    console.log(`שירות תרגום כתוביות: ${BASE_URL}/translate-subtitle`);
 });
