@@ -1,18 +1,50 @@
-// server.js - גרסה פשוטה יותר שבוודאות תעבוד
+// server.js - הקובץ הראשי להפעלת התוסף
 const { serveHTTP } = require('stremio-addon-sdk');
-const addonInterface = require('./addon');
 const express = require('express');
-const fetch = require('node-fetch');
-const srtParser = require('subtitles-parser');
-const translate = require('@vitalets/google-translate-api');
+const os = require('os');
+const addonInterface = require('./addon');
+
+// פונקציה לזיהוי כתובת השרת בזמן ריצה
+function detectBaseUrl() {
+    // אם יש משתנה סביבה, השתמש בו
+    if (process.env.BASE_URL) {
+        return process.env.BASE_URL;
+    }
+    
+    // בסביבת Render.com, בדרך כלל יש משתנה RENDER_EXTERNAL_URL
+    if (process.env.RENDER_EXTERNAL_URL) {
+        return process.env.RENDER_EXTERNAL_URL;
+    }
+    
+    // ניסיון לזהות כתובת IP חיצונית
+    const networkInterfaces = os.networkInterfaces();
+    let externalIp = 'localhost';
+    
+    Object.keys(networkInterfaces).forEach((interfaceName) => {
+        networkInterfaces[interfaceName].forEach((iface) => {
+            // מתעלם מכתובות לולאה פנימית ומחפש כתובות IPv4
+            if (iface.family === 'IPv4' && !iface.internal) {
+                externalIp = iface.address;
+            }
+        });
+    });
+    
+    // הגדרת הפורט
+    const PORT = process.env.PORT || 7000;
+    return `http://${externalIp}:${PORT}`;
+}
+
+// קביעת כתובת הבסיס כמשתנה סביבה גלובלי
+process.env.BASE_URL = detectBaseUrl();
+console.log(`כתובת בסיס: ${process.env.BASE_URL}`);
 
 // הגדרת פורט
 const PORT = process.env.PORT || 7000;
 
-// קודם כל, הפעל את ממשק התוסף העיקרי של stremio
+// הפעלת שרת התוסף
 serveHTTP(addonInterface, { port: PORT });
 
-// הוסף שירות תרגום כתוביות (נפרד)
+// יצירת שרת Express נוסף לתרגום כתוביות
 const app = express();
 
 // נתיב health check
@@ -20,76 +52,20 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     uptime: process.uptime(),
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    addonVersion: addonInterface.manifest.version,
+    addonName: addonInterface.manifest.name,
+    baseUrl: process.env.BASE_URL
   });
 });
 
-// נתיב לתרגום כתוביות
-app.get('/translate-subtitle', async (req, res) => {
-    try {
-        const { url } = req.query;
-        
-        if (!url) {
-            return res.status(400).send('URL parameter is required');
-        }
-        
-        // הורדת קובץ הכתוביות
-        const subtitleResponse = await fetch(url);
-        if (!subtitleResponse.ok) {
-            return res.status(404).send('Could not fetch subtitle file');
-        }
-        
-        const subtitleText = await subtitleResponse.text();
-        
-        // פרסור הכתוביות בפורמט SRT
-        let parsedSubs;
-        try {
-            parsedSubs = srtParser.fromSrt(subtitleText);
-        } catch (error) {
-            return res.status(400).send('Unsupported subtitle format. Only SRT is supported.');
-        }
-        
-        // הגבלת קצב התרגומים
-        const throttleMs = process.env.GOOGLE_TRANSLATE_THROTTLE || 500;
-        const maxConcurrent = process.env.MAX_CONCURRENT_TRANSLATIONS || 20;
-        const batchSize = Math.min(parsedSubs.length, maxConcurrent);
-        
-        // תרגום הכתוביות
-        for (let i = 0; i < parsedSubs.length; i += batchSize) {
-            const batch = parsedSubs.slice(i, i + batchSize);
-            
-            await Promise.all(
-                batch.map(async (sub, idx) => {
-                    try {
-                        const result = await translate(sub.text, { to: 'he' });
-                        parsedSubs[i + idx].text = result.text;
-                    } catch (error) {
-                        console.error(`Error translating subtitle at index ${i + idx}:`, error);
-                    }
-                })
-            );
-            
-            if (i + batchSize < parsedSubs.length) {
-                await new Promise(resolve => setTimeout(resolve, throttleMs));
-            }
-        }
-        
-        // המרה חזרה לפורמט SRT
-        const translatedSrt = srtParser.toSrt(parsedSubs);
-        
-        // שליחת הכתוביות המתורגמות
-        res.set('Content-Type', 'text/plain');
-        res.send(translatedSrt);
-    } catch (error) {
-        console.error('Subtitle translation error:', error);
-        res.status(500).send('Error translating subtitles');
-    }
+// ייבוא פונקציונליות תרגום הכתוביות
+const { setupSubtitleTranslation } = require('./subtitle-translator');
+setupSubtitleTranslation(app);
+
+// הפעלת שרת התרגום על אותו פורט
+app.listen(PORT + 1, () => {
+    console.log(`שירות תרגום כתוביות פועל על פורט ${PORT + 1}`);
 });
 
-// הפעלת שרת התרגום על פורט שונה
-const TRANSLATION_PORT = parseInt(PORT) + 1;
-app.listen(TRANSLATION_PORT, () => {
-    console.log(`שירות תרגום כתוביות פועל על פורט ${TRANSLATION_PORT}`);
-});
-
-console.log(`התוסף לסטרמיו פועל על פורט ${PORT} - manifest בכתובת http://tremio-hebrew-translation.onrender.com:${PORT}/manifest.json`);
+console.log(`התוסף לסטרמיו פועל על פורט ${PORT} עם manifest בכתובת ${process.env.BASE_URL}/manifest.json`);
