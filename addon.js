@@ -1,4 +1,4 @@
-// תוסף תרגום לעברית עבור Stremio
+// תוסף תרגום לעברית עבור Stremio - מחליף את Cinemeta
 const { addonBuilder } = require('stremio-addon-sdk');
 const fetch = require('node-fetch');
 const translate = require('@vitalets/google-translate-api');
@@ -7,28 +7,28 @@ const translate = require('@vitalets/google-translate-api');
 const BASE_URL = process.env.BASE_URL;
 console.log(`addon.js: Using BASE_URL: ${BASE_URL}`);
 
-// יצירת תוסף חדש
+// יצירת תוסף חדש עם אותו ID כמו Cinemeta
 const addon = new addonBuilder({
-    id: 'org.hebrew.translation',
+    id: 'org.stremio.cinemeta',  // שימוש באותו ID כמו Cinemeta המקורי
     version: '1.0.0',
-    name: 'תרגום לעברית',
-    description: 'תוסף זה מתרגם תוכן סטרמיו לעברית',
+    name: 'Cinemeta',  // שימוש באותו שם כמו Cinemeta המקורי
+    description: 'מידע סרטים וסדרות בעברית',
     resources: ['catalog', 'meta', 'stream'],
     types: ['movie', 'series'],
-    // הוספת שדה prioritize להעדפת התוסף הזה על פני אחרים
     prioritize: true,
     catalogs: [
         {
             type: 'movie',
-            id: 'hebrew-movies'
+            id: 'movie'  // באותו סגנון כמו Cinemeta
         },
         {
             type: 'series',
-            id: 'hebrew-series'
+            id: 'series'  // באותו סגנון כמו Cinemeta
         }
     ],
-    background: 'https://www.publicdomainpictures.net/pictures/290000/velka/israel-flag.jpg',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/d/d4/Flag_of_Israel.svg'
+    idPrefixes: ['tt', 'kitsu'],  // תמיכה באותם סוגי מזהים כמו Cinemeta
+    background: 'https://www.stremio.com/website/cinemeta-back.jpg',  // אותה תמונה כמו Cinemeta
+    logo: 'https://www.stremio.com/website/cinemeta-logo.png'  // אותו לוגו כמו Cinemeta
 });
 
 // פונקציה לתרגום טקסט לעברית
@@ -154,14 +154,26 @@ addon.defineCatalogHandler(async ({ type, id, extra }) => {
     
     try {
         // אחזור קטלוג מקורי
-        let catalogUrl = `https://v3-cinemeta.strem.io/catalog/${type}/top.json`;
+        let catalogUrl = `https://v3-cinemeta.strem.io/catalog/${type}/${id}.json`;
         
-        if (extra && extra.genre) {
-            catalogUrl = `https://v3-cinemeta.strem.io/catalog/${type}/top/${extra.genre}.json`;
-        }
-        
-        if (extra && extra.skip) {
-            catalogUrl += `?skip=${extra.skip}`;
+        if (extra) {
+            const queryParams = [];
+            
+            if (extra.genre) {
+                queryParams.push(`genre=${encodeURIComponent(extra.genre)}`);
+            }
+            
+            if (extra.skip) {
+                queryParams.push(`skip=${extra.skip}`);
+            }
+            
+            if (extra.search) {
+                queryParams.push(`search=${encodeURIComponent(extra.search)}`);
+            }
+            
+            if (queryParams.length > 0) {
+                catalogUrl += `?${queryParams.join('&')}`;
+            }
         }
         
         console.log(`שולח בקשה לקטלוג מקורי: ${catalogUrl}`);
