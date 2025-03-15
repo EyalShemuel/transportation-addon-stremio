@@ -2,6 +2,8 @@
 const { addonBuilder } = require('stremio-addon-sdk');
 const fetch = require('node-fetch');
 const translate = require('@vitalets/google-translate-api');
+const BASE_URL = process.env.BASE_URL || 'https://tremio-hebrew-translation.onrender.com';
+console.log(`addon.js: Using BASE_URL: ${BASE_URL}`);
 
 // יצירת תוסף חדש
 const addon = new addonBuilder({
@@ -227,14 +229,14 @@ addon.defineStreamHandler(async ({ type, id }) => {
                 
                 // מוסיפים אפשרות לכתוביות מתורגמות אוטומטית לעברית
                 streams.push({
-                    id: `auto-translated-he-${engSub.id}`,
-                    title: 'כתוביות מתורגמות אוטומטית לעברית',
-                    subtitle: {
-                        // שימוש בכתובת הבסיס הדינמית
-                        url: `${BASE_URL}/translate-subtitle?url=${encodeURIComponent(engSub.url)}`,
-                        lang: 'he'
-                    }
-                });
+    id: `auto-translated-he-${engSub.id}`,
+    title: 'כתוביות מתורגמות אוטומטית לעברית',
+    subtitle: {
+        // שימוש בכתובת הבסיס הדינמית
+        url: `${BASE_URL}/translate-subtitle?url=${encodeURIComponent(engSub.url)}`,
+        lang: 'he'
+    }
+});
             }
         }
         
@@ -244,6 +246,6 @@ addon.defineStreamHandler(async ({ type, id }) => {
         return { streams: [] };
     }
 });
-
+console.log('addon.js נטען בהצלחה');
 // יצוא התוסף
 module.exports = addon.getInterface();
