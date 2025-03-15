@@ -15,6 +15,8 @@ const addon = new addonBuilder({
     description: 'תוסף זה מתרגם תוכן סטרמיו לעברית',
     resources: ['catalog', 'meta', 'stream'],
     types: ['movie', 'series'],
+    // הוספת שדה prioritize להעדפת התוסף הזה על פני אחרים
+    prioritize: true,
     catalogs: [
         {
             type: 'movie',
