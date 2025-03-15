@@ -224,13 +224,14 @@ addon.defineStreamHandler(async ({ type, id }) => {
                 
                 // מוסיפים אפשרות לכתוביות מתורגמות אוטומטית לעברית
                 streams.push({
-                    id: `auto-translated-he-${engSub.id}`,
-                    title: 'כתוביות מתורגמות אוטומטית לעברית',
-                    subtitle: {
-                        url: `http://127.0.0.1:7000/translate-subtitle?url=${encodeURIComponent(engSub.url)}`,
-                        lang: 'he'
-                    }
-                });
+    id: `auto-translated-he-${engSub.id}`,
+    title: 'כתוביות מתורגמות אוטומטית לעברית',
+    subtitle: {
+        // במקום להשתמש בכתובת localhost, נשתמש בשרת הנוכחי
+        url: `${process.env.BASE_URL || 'https://transportation-addon-stremio.onrender.com'}/translate-subtitle?url=${encodeURIComponent(engSub.url)}`,
+        lang: 'he'
+    }
+});
             }
         }
         
