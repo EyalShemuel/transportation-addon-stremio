@@ -30,7 +30,7 @@ function detectBaseUrl() {
     });
     
     // הגדרת הפורט
-    const PORT = process.env.PORT || 7000;
+    const PORT = parseInt(process.env.PORT || 7000, 10);
     return `http://${externalIp}:${PORT}`;
 }
 
@@ -38,13 +38,10 @@ function detectBaseUrl() {
 process.env.BASE_URL = detectBaseUrl();
 console.log(`כתובת בסיס: ${process.env.BASE_URL}`);
 
-// הגדרת פורט
-const PORT = process.env.PORT || 7000;
+// הגדרת פורט - כעת מוודאים שהוא מספר
+const PORT = parseInt(process.env.PORT || 7000, 10);
 
-// הפעלת שרת התוסף
-serveHTTP(addonInterface, { port: PORT });
-
-// יצירת שרת Express נוסף לתרגום כתוביות
+// יצירת אפליקציית Express
 const app = express();
 
 // נתיב health check
@@ -63,9 +60,8 @@ app.get('/health', (req, res) => {
 const { setupSubtitleTranslation } = require('./subtitle-translator');
 setupSubtitleTranslation(app);
 
-// הפעלת שרת התרגום על אותו פורט
-app.listen(PORT + 1, () => {
-    console.log(`שירות תרגום כתוביות פועל על פורט ${PORT + 1}`);
-});
+// הפעלת שרת התוסף עם אפליקציית Express משולבת
+serveHTTP(addonInterface, { port: PORT, expressApp: app });
 
 console.log(`התוסף לסטרמיו פועל על פורט ${PORT} עם manifest בכתובת ${process.env.BASE_URL}/manifest.json`);
+console.log(`שירות תרגום כתוביות זמין בנתיב ${process.env.BASE_URL}/translate-subtitle`);
