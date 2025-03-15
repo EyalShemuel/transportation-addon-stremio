@@ -14,7 +14,7 @@ process.env.BASE_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PO
 console.log(`כתובת בסיס: ${process.env.BASE_URL}`);
 
 // 1. קודם כל, הפעל את שרת התוסף הבסיסי
-serveHTTP(addonInterface, { port: PORT });
+serveHTTP(addonInterface, { port: PORT, host: '0.0.0.0' });;
 console.log(`התוסף לסטרמיו פועל על פורט ${PORT}`);
 
 // 2. הפעל שרת Express נפרד לתרגום כתוביות
@@ -96,7 +96,7 @@ app.get('/health', (req, res) => {
 
 // הפעלת שרת התרגום על פורט שונה (10001 במקום 10000+1)
 // משתמשים בפורט ספציפי כדי למנוע בעיות המרה
-app.listen(PORT + 1001, () => {
+app.listen(PORT + 1001, '0.0.0.0', () => {
     console.log(`שירות תרגום כתוביות פועל על פורט ${PORT + 1001}`);
     console.log(`שירות תרגום כתוביות זמין בנתיב ${process.env.BASE_URL}/translate-subtitle`);
 });
