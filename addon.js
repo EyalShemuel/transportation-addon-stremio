@@ -175,6 +175,9 @@ addon.defineCatalogHandler(async ({ type, id, extra }) => {
 // תמיכה בכתוביות בעברית עם אפשרות לתרגום אוטומטי מאנגלית
 addon.defineStreamHandler(async ({ type, id }) => {
     try {
+        // כתובת הבסיס של השרת - שימוש במשתנה סביבה או בכתובת ברירת מחדל
+        const BASE_URL = process.env.BASE_URL || 'http://localhost:7000';
+        
         // בהנחה שיש תוסף אחר שמספק כתוביות
         const subtitleResponse = await fetch(`https://v3-community-subs.strem.io/subtitles/${type}/${id}.json`);
         
@@ -224,14 +227,14 @@ addon.defineStreamHandler(async ({ type, id }) => {
                 
                 // מוסיפים אפשרות לכתוביות מתורגמות אוטומטית לעברית
                 streams.push({
-    id: `auto-translated-he-${engSub.id}`,
-    title: 'כתוביות מתורגמות אוטומטית לעברית',
-    subtitle: {
-        // במקום להשתמש בכתובת localhost, נשתמש בשרת הנוכחי
-        url: `${process.env.BASE_URL || 'https://transportation-addon-stremio.onrender.com'}/translate-subtitle?url=${encodeURIComponent(engSub.url)}`,
-        lang: 'he'
-    }
-});
+                    id: `auto-translated-he-${engSub.id}`,
+                    title: 'כתוביות מתורגמות אוטומטית לעברית',
+                    subtitle: {
+                        // שימוש בכתובת הבסיס הדינמית
+                        url: `${BASE_URL}/translate-subtitle?url=${encodeURIComponent(engSub.url)}`,
+                        lang: 'he'
+                    }
+                });
             }
         }
         
