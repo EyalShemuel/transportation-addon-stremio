@@ -1,14 +1,17 @@
 // server.js - הקובץ הראשי להפעלת התוסף
-const { serveHTTP, getRouter } = require('stremio-addon-sdk');
+const { serveHTTP } = require('stremio-addon-sdk');
+const express = require('express');
 const addonInterface = require('./addon');
 const { addSubtitleTranslationService } = require('./subtitle-translator');
 
-// יצירת נתב Express עם תמיכה בשירות התרגום
-const router = getRouter(addonInterface);
-addSubtitleTranslationService(router);
+// יצירת אפליקציית Express
+const app = express();
+
+// הוספת שירות התרגום
+addSubtitleTranslationService(app);
 
 // הוספת נתיב health check לשרת
-router.get('/health', (req, res) => {
+app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     uptime: process.uptime(),
@@ -18,8 +21,11 @@ router.get('/health', (req, res) => {
   });
 });
 
-// הפעלת השרת
+// הגדרת הפורט
 const PORT = process.env.PORT || 7000;
-router.listen(PORT, () => {
-    console.log(`התוסף לתרגום לעברית פועל על פורט ${PORT}`);
-});
+
+// הפעלת שרת התוסף
+serveHTTP(addonInterface, { port: PORT, stream: true });
+
+// הוספת לוג להודיע שהשרת פועל
+console.log(`התוסף לתרגום לעברית פועל על פורט ${PORT}`);
