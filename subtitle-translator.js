@@ -1,3 +1,4 @@
+//subtitle-translator.js
 // שירות תרגום כתוביות מאנגלית לעברית
 const fetch = require('node-fetch');
 const srtParser = require('subtitles-parser');
